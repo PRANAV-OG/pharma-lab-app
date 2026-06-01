@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PharmaLab</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; color: #222; }
+    .header { background: #1a56db; color: white; padding: 16px 20px; font-size: 20px; font-weight: bold; }
+    .card { background: white; margin: 16px; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; margin-bottom: 12px; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .label { font-size: 12px; color: #888; margin-bottom: 2px; margin-top: 12px; }
+    .value { font-size: 15px; font-weight: 500; }
+    .sop-box { background: #f0f4ff; border-left: 4px solid #1a56db; padding: 12px 16px; border-radius: 6px; font-size: 14px; line-height: 1.7; margin-top: 8px; }
+    .chat-section { margin: 16px; }
+    .chat-title { font-weight: bold; font-size: 16px; margin-bottom: 12px; }
+    .chat-messages { background: white; border-radius: 12px; padding: 16px; min-height: 120px; max-height: 320px; overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; }
+    .msg { margin-bottom: 12px; font-size: 14px; line-height: 1.6; }
+    .msg-user { text-align: right; }
+    .msg-user span { background: #1a56db; color: white; padding: 8px 14px; border-radius: 18px 18px 4px 18px; display: inline-block; max-width: 80%; }
+    .msg-ai span { background: #f0f4ff; color: #222; padding: 8px 14px; border-radius: 18px 18px 18px 4px; display: inline-block; max-width: 85%; }
+    .chat-input-row { display: flex; gap: 8px; }
+    .chat-input-row input { flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 24px; font-size: 14px; outline: none; }
+    .chat-input-row button { padding: 12px 20px; background: #1a56db; color: white; border: none; border-radius: 24px; font-size: 14px; cursor: pointer; }
+    .loading { color: #888; font-style: italic; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<div class="header">🔬 PharmaLab</div>
+
+<div class="card" id="instrument-card">
+  <div style="font-size:13px; color:#888;">Loading instrument...</div>
+</div>
+
+<div class="chat-section">
+  <div class="chat-title">💬 Ask about this instrument</div>
+  <div class="chat-messages" id="chat-box">
+    <div class="msg msg-ai"><span>Hi! I can answer questions about this instrument — precautions, how to use it, troubleshooting, calibration. What would you like to know?</span></div>
+  </div>
+  <div class="chat-input-row">
+    <input type="text" id="user-input" placeholder="Type your question..." />
+    <button onclick="sendMessage()">Ask</button>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyArzvmOv-SJ1UXrCyfMWNfA0o4fTubMbtE",
+    authDomain: "pharma-lab-app.firebaseapp.com",
+    projectId: "pharma-lab-app",
+    storageBucket: "pharma-lab-app.firebasestorage.app",
+    messagingSenderId: "17514653276",
+    appId: "1:17514653276:web:b6623060cc3cf99ac02899"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const INSTRUMENT_ID = "QojMr2IE4rXb9aiz9A4p";
+  const GEMINI_KEY = "AQ.Ab8RN6JNV4ZVEozL53ew_Vcb-DP5YB8_FamMb4ioUMEyOgf-YQ";
+
+  window.instrumentSOP = "";
+  window.instrumentName = "";
+  window.GEMINI_KEY = GEMINI_KEY;
+
+  const docRef = doc(db, "instruments", INSTRUMENT_ID);
+  const snap = await getDoc(docRef);
+
+  if (snap.exists()) {
+    const d = snap.data();
+    window.instrumentSOP = d.sop;
+    window.instrumentName = d.name;
+
+    const badgeClass = d.status === "Calibrated" ? "badge-green" : "badge-red";
+    document.getElementById("instrument-card").innerHTML = `
+      <span class="badge ${badgeClass}">${d.status}</span>
+      <div style="font-size:22px; font-weight:bold; margin-bottom:4px;">${d.name}</div>
+      <div style="color:#555; font-size:14px; margin-bottom:16px;">${d.model}</div>
+      <div class="label">LOCATION</div>
+      <div class="value">${d.location}</div>
+      <div class="label">LAST CALIBRATION</div>
+      <div class="value">${d.lastCalibration}</div>
+      <div class="label">NEXT CALIBRATION DUE</div>
+      <div class="value">${d.nextCalibration}</div>
+      <div class="label">SOP SUMMARY</div>
+      <div class="sop-box">${d.sop}</div>
+    `;
+  }
+</script>
+
+<script>
+  async function sendMessage() {
+    const input = document.getElementById("user-input");
+    const chatBox = document.getElementById("chat-box");
+    const question = input.value.trim();
+    if (!question) return;
+
+    // Show user message
+    chatBox.innerHTML += `<div class="msg msg-user"><span>${question}</span></div>`;
+    input.value = "";
+    chatBox.innerHTML += `<div class="msg msg-ai loading" id="thinking"><span>Thinking...</span></div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // Call Gemini
+    const prompt = `You are a helpful lab assistant for pharmacy students. 
+You only answer questions about this specific instrument: ${window.instrumentName}.
+Use this SOP information to answer: ${window.instrumentSOP}
+If the question is not related to this instrument, politely say you can only help with ${window.instrumentName} questions.
+Keep answers simple and clear for a pharmacy student.
+Student's question: ${question}`;
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${window.GEMINI_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        }
+      );
+      const data = await res.json();
+      const reply = data.candidates[0].content.parts[0].text;
+
+      document.getElementById("thinking").outerHTML =
+        `<div class="msg msg-ai"><span>${reply}</span></div>`;
+    } catch (e) {
+      document.getElementById("thinking").outerHTML =
+        `<div class="msg msg-ai"><span>Sorry, something went wrong. Please try again.</span></div>`;
+    }
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  document.getElementById("user-input").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") sendMessage();
+  });
+</script>
+
+</body>
+</html>
