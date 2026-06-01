@@ -73,7 +73,7 @@
 
   const docRef = doc(db, "instruments", INSTRUMENT_ID);
   const snap = await getDoc(docRef);
-
+console.log("Snap exists:", snap.exists(), "Data:", snap.data());
   if (snap.exists()) {
     const d = snap.data();
     window.instrumentSOP = d.sop;
