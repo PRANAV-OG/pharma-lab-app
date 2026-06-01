@@ -47,10 +47,14 @@
   </div>
 </div>
 
-<!-- Firebase -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script>
+  // ---- CONFIG — fill in your values ----
+  const INSTRUMENT_ID = "QojMr2IE4rXb9aiz9A4p";
+  const GEMINI_KEY = "AQ.Ab8RN6JNV4ZVEozL53ew_Vcb-DP5YB8_FamMb4ioUMEyOgf-YQ";
+  // --------------------------------------
 
   const firebaseConfig = {
     apiKey: "AIzaSyArzvmOv-SJ1UXrCyfMWNfA0o4fTubMbtE",
@@ -61,65 +65,65 @@
     appId: "1:17514653276:web:b6623060cc3cf99ac02899"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  const INSTRUMENT_ID = "QojMr2IE4rXb9aiz9A4p";
-  const GEMINI_KEY = "AQ.Ab8RN6JNV4ZVEozL53ew_Vcb-DP5YB8_FamMb4ioUMEyOgf-YQ";
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
   window.instrumentSOP = "";
   window.instrumentName = "";
-  window.GEMINI_KEY = GEMINI_KEY;
 
-  const docRef = doc(db, "instruments", INSTRUMENT_ID);
-  const snap = await getDoc(docRef);
-console.log("Snap exists:", snap.exists(), "Data:", snap.data());
-  if (snap.exists()) {
-    const d = snap.data();
-    window.instrumentSOP = d.sop;
-    window.instrumentName = d.name;
+  db.collection("instruments").doc(INSTRUMENT_ID).get()
+    .then(function(snap) {
+      console.log("Snap exists:", snap.exists, "ID:", snap.id);
+      if (snap.exists) {
+        const d = snap.data();
+        console.log("Data loaded:", d);
+        window.instrumentSOP = d.sop;
+        window.instrumentName = d.name;
 
-    const badgeClass = d.status === "Calibrated" ? "badge-green" : "badge-red";
-    document.getElementById("instrument-card").innerHTML = `
-      <span class="badge ${badgeClass}">${d.status}</span>
-      <div style="font-size:22px; font-weight:bold; margin-bottom:4px;">${d.name}</div>
-      <div style="color:#555; font-size:14px; margin-bottom:16px;">${d.model}</div>
-      <div class="label">LOCATION</div>
-      <div class="value">${d.location}</div>
-      <div class="label">LAST CALIBRATION</div>
-      <div class="value">${d.lastCalibration}</div>
-      <div class="label">NEXT CALIBRATION DUE</div>
-      <div class="value">${d.nextCalibration}</div>
-      <div class="label">SOP SUMMARY</div>
-      <div class="sop-box">${d.sop}</div>
-    `;
-  }
-</script>
+        const badgeClass = d.status === "Calibrated" ? "badge-green" : "badge-red";
+        document.getElementById("instrument-card").innerHTML =
+          '<span class="badge ' + badgeClass + '">' + d.status + '</span>' +
+          '<div style="font-size:22px;font-weight:bold;margin-bottom:4px;">' + d.name + '</div>' +
+          '<div style="color:#555;font-size:14px;margin-bottom:16px;">' + d.model + '</div>' +
+          '<div class="label">LOCATION</div>' +
+          '<div class="value">' + d.location + '</div>' +
+          '<div class="label">LAST CALIBRATION</div>' +
+          '<div class="value">' + d.lastCalibration + '</div>' +
+          '<div class="label">NEXT CALIBRATION DUE</div>' +
+          '<div class="value">' + d.nextCalibration + '</div>' +
+          '<div class="label">SOP SUMMARY</div>' +
+          '<div class="sop-box">' + d.sop + '</div>';
+      } else {
+        document.getElementById("instrument-card").innerHTML =
+          '<div style="color:red;">Instrument not found. Check the document ID.</div>';
+      }
+    })
+    .catch(function(error) {
+      console.error("Firebase error:", error);
+      document.getElementById("instrument-card").innerHTML =
+        '<div style="color:red;">Error: ' + error.message + '</div>';
+    });
 
-<script>
   async function sendMessage() {
     const input = document.getElementById("user-input");
     const chatBox = document.getElementById("chat-box");
     const question = input.value.trim();
     if (!question) return;
 
-    // Show user message
-    chatBox.innerHTML += `<div class="msg msg-user"><span>${question}</span></div>`;
+    chatBox.innerHTML += '<div class="msg msg-user"><span>' + question + '</span></div>';
     input.value = "";
-    chatBox.innerHTML += `<div class="msg msg-ai loading" id="thinking"><span>Thinking...</span></div>`;
+    chatBox.innerHTML += '<div class="msg msg-ai loading" id="thinking"><span>Thinking...</span></div>';
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    // Call Gemini
-    const prompt = `You are a helpful lab assistant for pharmacy students. 
-You only answer questions about this specific instrument: ${window.instrumentName}.
-Use this SOP information to answer: ${window.instrumentSOP}
-If the question is not related to this instrument, politely say you can only help with ${window.instrumentName} questions.
-Keep answers simple and clear for a pharmacy student.
-Student's question: ${question}`;
+    const prompt = "You are a helpful lab assistant for pharmacy students. " +
+      "You only answer questions about this specific instrument: " + window.instrumentName + ". " +
+      "Use this SOP information to answer: " + window.instrumentSOP + " " +
+      "Keep answers simple and clear for a pharmacy student. " +
+      "Student question: " + question;
 
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${window.GEMINI_KEY}`,
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_KEY,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -128,14 +132,12 @@ Student's question: ${question}`;
       );
       const data = await res.json();
       const reply = data.candidates[0].content.parts[0].text;
-
       document.getElementById("thinking").outerHTML =
-        `<div class="msg msg-ai"><span>${reply}</span></div>`;
-    } catch (e) {
+        '<div class="msg msg-ai"><span>' + reply + '</span></div>';
+    } catch(e) {
       document.getElementById("thinking").outerHTML =
-        `<div class="msg msg-ai"><span>Sorry, something went wrong. Please try again.</span></div>`;
+        '<div class="msg msg-ai"><span>Sorry, something went wrong. Please try again.</span></div>';
     }
-
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 
