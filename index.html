@@ -51,9 +51,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <script>
-  // ---- CONFIG — fill in your values ----
   const INSTRUMENT_ID = "uv-vis-1";
-  // --------------------------------------
+  const WORKER_URL = "https://pharmalab-gemini-proxy.pranavspatil18.workers.dev";
 
   const firebaseConfig = {
     apiKey: "AIzaSyArzvmOv-SJ1UXrCyfMWNfA0o4fTubMbtE",
@@ -78,7 +77,6 @@
         console.log("Data loaded:", d);
         window.instrumentSOP = d.sop;
         window.instrumentName = d.name;
-
         const badgeClass = d.status === "Calibrated" ? "badge-green" : "badge-red";
         document.getElementById("instrument-card").innerHTML =
           '<span class="badge ' + badgeClass + '">' + d.status + '</span>' +
@@ -111,43 +109,4 @@
 
     chatBox.innerHTML += '<div class="msg msg-user"><span>' + question + '</span></div>';
     input.value = "";
-    chatBox.innerHTML += '<div class="msg msg-ai loading" id="thinking"><span>Thinking...</span></div>';
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    const prompt = "You are a helpful lab assistant for pharmacy students. " +
-      "You only answer questions about this specific instrument: " + window.instrumentName + ". " +
-      "Use this SOP information to answer: " + window.instrumentSOP + " " +
-      "Keep answers simple and clear for a pharmacy student. " +
-      "Student question: " + question;
-
-    try {
-      const res = await fetch(
-  "https://pharmalab-gemini-proxy.pranavspatil18.workers.dev",
-  {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      question: question,
-      sopText: window.instrumentSOP,
-      instrumentName: window.instrumentName
-    })
-  }
-);
-const data = await res.json();
-const reply = data.reply;
-      document.getElementById("thinking").outerHTML =
-        '<div class="msg msg-ai"><span>' + reply + '</span></div>';
-    } catch(e) {
-      document.getElementById("thinking").outerHTML =
-        '<div class="msg msg-ai"><span>Sorry, something went wrong. Please try again.</span></div>';
-    }
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }
-
-  document.getElementById("user-input").addEventListener("keypress", function(e) {
-    if (e.key === "Enter") sendMessage();
-  });
-</script>
-
-</body>
-</html>
+    chatBox.innerHTML += '<div
